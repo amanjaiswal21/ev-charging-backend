@@ -29,10 +29,10 @@ class TariffConfigurationTest {
         ).run(context -> {
             assertThat(context).hasNotFailed();
             BillingService billing = context.getBean(BillingService.class);
-            assertThat(billing.calculate(ConnectorType.AC, 1, 0)).isEqualByComparingTo("75");
-            assertThat(billing.calculate(ConnectorType.AC, 10, 0)).isEqualByComparingTo("90");
-            assertThat(billing.calculate(ConnectorType.DC, 1, 0)).isEqualByComparingTo("180");
-            assertThat(billing.calculate(ConnectorType.DC, 20, 0)).isEqualByComparingTo("275");
+            assertThat(billing.calculate(ConnectorType.AC, 1, 0)).isEqualTo(75.0);
+            assertThat(billing.calculate(ConnectorType.AC, 10, 0)).isEqualTo(90.0);
+            assertThat(billing.calculate(ConnectorType.DC, 1, 0)).isEqualTo(180.0);
+            assertThat(billing.calculate(ConnectorType.DC, 20, 0)).isEqualTo(275.0);
         });
     }
 

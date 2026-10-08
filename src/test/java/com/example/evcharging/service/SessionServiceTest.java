@@ -27,7 +27,6 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.support.DependencyInjectionTestExecutionListener;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,14 +46,15 @@ class SessionServiceTest {
     @BeforeEach
     void setUp() {
         driverService = new DriverService(new DriverRepository());
-        stationService = new StationService(new StationRepository(), new NearestAvailableStationSelectionStrategy());
+        stationService = new StationService(new StationRepository());
         promoCodeService = new PromoCodeService(new PromoCodeRepository());
         sessionService = new SessionService(
                 new SessionRepository(),
                 driverService,
                 stationService,
                 billingService,
-                promoCodeService
+                promoCodeService,
+                new NearestAvailableStationSelectionStrategy()
         );
     }
 
@@ -86,7 +86,7 @@ class SessionServiceTest {
         ChargingSession completed = sessionService.end(active.getId(), new SessionEndDto(25.0));
 
         assertEquals(SessionStatus.COMPLETED, completed.getStatus());
-        assertEquals(new BigDecimal("240.00"), completed.getFinalCost());
+        assertEquals(240.0, completed.getFinalCost(), 0.000001);
         assertEquals(ConnectorStatus.AVAILABLE, station.getConnectors().get(0).getStatus());
     }
 
@@ -115,7 +115,7 @@ class SessionServiceTest {
 
         assertEquals("SAVE10", completed.getPromoCode());
         assertEquals(10.0, completed.getPromoDiscountPercentage());
-        assertEquals(new BigDecimal("306.00"), completed.getFinalCost());
+        assertEquals(306.0, completed.getFinalCost(), 0.000001);
     }
 
     @Test
