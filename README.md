@@ -22,7 +22,6 @@
 - Add persistent storage with transactions and concurrency control for connector allocation.
 - Add API integration tests and concurrent session-start tests.
 - Add tariff versioning so active sessions retain their original pricing rules when tariffs change.
-- Add configurable station selection, flat-amount promos, expiry rules, and paginated history.
 
 ## AI Use
 
