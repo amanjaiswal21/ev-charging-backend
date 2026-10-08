@@ -2,28 +2,28 @@ package com.example.evcharging.mapper;
 
 import com.example.evcharging.dto.*;
 import com.example.evcharging.model.*;
-import com.example.evcharging.service.command.*;
+import com.example.evcharging.dto.internal.*;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ApiDtoMapper {
-    public RegisterDriverCommand toCommand(RegisterDriverRequest request) {
-        return new RegisterDriverCommand(request.name(), request.vehicleRegistrationNumber());
+    public DriverRegistrationDto toInternal(RegisterDriverRequest request) {
+        return new DriverRegistrationDto(request.name(), request.vehicleRegistrationNumber());
     }
 
-    public RegisterStationCommand toCommand(RegisterStationRequest request) {
-        return RegisterStationCommand.builder()
+    public StationRegistrationDto toInternal(RegisterStationRequest request) {
+        return StationRegistrationDto.builder()
                 .name(request.name())
                 .latitude(request.latitude())
                 .longitude(request.longitude())
                 .connectors(request.connectors().stream()
-                        .map(connector -> new ConnectorCommand(connector.type()))
+                        .map(connector -> new ConnectorDto(connector.type()))
                         .toList())
                 .build();
     }
 
-    public StartSessionCommand toCommand(StartSessionRequest request) {
-        return StartSessionCommand.builder()
+    public SessionStartDto toInternal(StartSessionRequest request) {
+        return SessionStartDto.builder()
                 .driverId(request.driverId())
                 .latitude(request.latitude())
                 .longitude(request.longitude())
@@ -33,12 +33,12 @@ public class ApiDtoMapper {
                 .build();
     }
 
-    public EndSessionCommand toCommand(EndSessionRequest request) {
-        return new EndSessionCommand(request.energyDeliveredKwh());
+    public SessionEndDto toInternal(EndSessionRequest request) {
+        return new SessionEndDto(request.energyDeliveredKwh());
     }
 
-    public CreatePromoCommand toCommand(CreatePromoRequest request) {
-        return new CreatePromoCommand(request.code(), request.percentageDiscount());
+    public PromoCodeCreationDto toInternal(CreatePromoRequest request) {
+        return new PromoCodeCreationDto(request.code(), request.percentageDiscount());
     }
 
     public DriverResponse toResponse(Driver driver) {

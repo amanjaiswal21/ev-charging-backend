@@ -27,7 +27,7 @@ public class StationController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ChargingStationResponse register(@Valid @RequestBody RegisterStationRequest request) {
-        return mapper.toResponse(stationService.register(mapper.toCommand(request)));
+        return mapper.toResponse(stationService.register(mapper.toInternal(request)));
     }
 
     @PatchMapping("/{stationId}/connectors/{connectorId}/status")

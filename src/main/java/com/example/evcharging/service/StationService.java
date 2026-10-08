@@ -8,7 +8,7 @@ import com.example.evcharging.model.ChargingStation;
 import com.example.evcharging.model.Connector;
 import com.example.evcharging.model.ConnectorStatus;
 import com.example.evcharging.repository.StationRepository;
-import com.example.evcharging.service.command.RegisterStationCommand;
+import com.example.evcharging.dto.internal.StationRegistrationDto;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
@@ -19,8 +19,8 @@ import java.util.UUID;
 public class StationService {
     private final StationRepository stationRepository;
 
-    public ChargingStation register(RegisterStationCommand command) {
-        var connectors = command.connectors().stream()
+    public ChargingStation register(StationRegistrationDto input) {
+        var connectors = input.connectors().stream()
                 .map(c -> Connector.builder()
                         .id(UUID.randomUUID().toString())
                         .type(c.type())
@@ -29,9 +29,9 @@ public class StationService {
 
         ChargingStation station = ChargingStation.builder()
                 .id(UUID.randomUUID().toString())
-                .name(command.name())
-                .latitude(command.latitude())
-                .longitude(command.longitude())
+                .name(input.name())
+                .latitude(input.latitude())
+                .longitude(input.longitude())
                 .connectors(connectors)
                 .build();
 

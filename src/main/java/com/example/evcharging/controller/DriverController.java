@@ -25,7 +25,7 @@ public class DriverController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public DriverResponse register(@Valid @RequestBody RegisterDriverRequest request) {
-        return mapper.toResponse(driverService.register(mapper.toCommand(request)));
+        return mapper.toResponse(driverService.register(mapper.toInternal(request)));
     }
 
     @GetMapping("/{driverId}/sessions")

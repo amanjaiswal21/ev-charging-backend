@@ -7,9 +7,9 @@ import com.example.evcharging.exception.NotFoundException;
 import com.example.evcharging.model.ChargingSession;
 import com.example.evcharging.model.SessionStatus;
 import com.example.evcharging.repository.SessionRepository;
-import com.example.evcharging.service.command.EndSessionCommand;
-import com.example.evcharging.service.command.StartSessionCommand;
-import com.example.evcharging.service.result.PromoDiscount;
+import com.example.evcharging.dto.internal.SessionEndDto;
+import com.example.evcharging.dto.internal.SessionStartDto;
+import com.example.evcharging.dto.internal.PromoDiscountDto;
 import com.example.evcharging.strategy.ConnectorAllocation;
 import com.example.evcharging.strategy.StationSelectionStrategy;
 import org.springframework.stereotype.Service;
@@ -29,21 +29,27 @@ public class SessionService {
     private final PromoCodeService promoCodeService;
     private final StationSelectionStrategy stationSelectionStrategy;
 
-    public synchronized ChargingSession start(StartSessionCommand command) {
-        driverService.getById(command.driverId());
-        PromoDiscount promoDiscount = promoCodeService.resolveDiscount(command.promoCode());
+    public synchronized ChargingSession start(SessionStartDto input) {
+        driverService.getById(input.driverId());
+        PromoDiscountDto promoDiscount = promoCodeService.resolveDiscount(input.promoCode());
         ConnectorAllocation allocation = stationSelectionStrategy
-                .select(command, stationService.getAll())
+                .select(input, stationService.getAll())
                 .orElseThrow(() -> new BadRequestException("No available connector found within radius"));
 
         stationService.reserveConnector(allocation.station().getId(), allocation.connector().getId());
 
-        ChargingSession session = ChargingSession.builder()
+        ChargingSession session = getChargingStation(input, allocation, promoDiscount);
+
+        return sessionRepository.save(session);
+    }
+
+    private static ChargingSession getChargingStation(SessionStartDto input, ConnectorAllocation allocation, PromoDiscountDto promoDiscount) {
+        return ChargingSession.builder()
                 .id(UUID.randomUUID().toString())
-                .driverId(command.driverId())
+                .driverId(input.driverId())
                 .stationId(allocation.station().getId())
                 .connectorId(allocation.connector().getId())
-                .requestedConnectorType(command.requestedConnectorType())
+                .requestedConnectorType(input.requestedConnectorType())
                 .actualConnectorType(allocation.connector().getType())
                 .billingConnectorType(allocation.billingConnectorType())
                 .status(SessionStatus.ACTIVE)
@@ -51,11 +57,9 @@ public class SessionService {
                 .promoCode(promoDiscount.code())
                 .promoDiscountPercentage(promoDiscount.percentage())
                 .build();
-
-        return sessionRepository.save(session);
     }
 
-    public synchronized ChargingSession end(String sessionId, EndSessionCommand command) {
+    public synchronized ChargingSession end(String sessionId, SessionEndDto input) {
         ChargingSession session = getById(sessionId);
         if (session.getStatus() != SessionStatus.ACTIVE) {
             throw new BadRequestException("Only active sessions can be ended");
@@ -63,12 +67,12 @@ public class SessionService {
 
         double finalCost = billingService.calculate(
                 session.getBillingConnectorType(),
-                command.energyDeliveredKwh(),
+                input.energyDeliveredKwh(),
                 session.getPromoDiscountPercentage()
         );
 
         stationService.releaseConnector(session.getStationId(), session.getConnectorId());
-        session.setEnergyDeliveredKwh(command.energyDeliveredKwh());
+        session.setEnergyDeliveredKwh(input.energyDeliveredKwh());
         session.setFinalCost(finalCost);
         session.setEndTime(LocalDateTime.now());
         session.setStatus(SessionStatus.COMPLETED);

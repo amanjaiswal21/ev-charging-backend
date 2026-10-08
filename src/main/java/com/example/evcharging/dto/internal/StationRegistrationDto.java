@@ -1,13 +1,13 @@
-package com.example.evcharging.service.command;
+package com.example.evcharging.dto.internal;
 
 import lombok.Builder;
 
 import java.util.List;
 
 @Builder
-public record RegisterStationCommand(
+public record StationRegistrationDto(
         String name,
         double latitude,
         double longitude,
-        List<ConnectorCommand> connectors
+        List<ConnectorDto> connectors
 ) {}

@@ -1,11 +1,11 @@
 package com.example.evcharging.strategy;
 
 import com.example.evcharging.model.ChargingStation;
-import com.example.evcharging.service.command.StartSessionCommand;
+import com.example.evcharging.dto.internal.SessionStartDto;
 
 import java.util.Collection;
 import java.util.Optional;
 
 public interface StationSelectionStrategy {
-    Optional<ConnectorAllocation> select(StartSessionCommand command, Collection<ChargingStation> stations);
+    Optional<ConnectorAllocation> select(SessionStartDto input, Collection<ChargingStation> stations);
 }

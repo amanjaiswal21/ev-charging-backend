@@ -20,7 +20,7 @@ public class PromoCodeController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PromoCodeResponse create(@Valid @RequestBody CreatePromoRequest request) {
-        return mapper.toResponse(promoCodeService.create(mapper.toCommand(request)));
+        return mapper.toResponse(promoCodeService.create(mapper.toInternal(request)));
     }
 
     @DeleteMapping("/{code}")

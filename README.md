@@ -19,7 +19,7 @@ Small Spring Boot backend for the EV charging machine-coding problem. It uses in
 - Driver and station session history for active and completed sessions.
 - Promo create/delete APIs, with valid promo discounts snapshotted when a session starts.
 - Tiered AC/DC tariffs with minimum session charges.
-- Separate API DTOs and service-layer command/result records so controllers do not expose internal domain models directly.
+- Separate API DTOs and internal DTO records so controllers do not expose internal domain models directly.
 - Automated tests for billing slabs, minimum charges, promo discounts, AC-billed-on-DC, out-of-service connectors, radius filtering, and promo snapshot behavior.
 
 ## Run
@@ -53,8 +53,8 @@ mvn test
 - Connector status `IN_USE` is managed by session lifecycle only. The status API is for taking connectors out of service and bringing them back.
 
 ## Design Decisions
-- Controllers expose API response DTOs and map API requests into service-layer command records. Domain models remain internal and are not returned directly by REST controllers.
-- Lombok builders construct domain models and larger command/response DTOs with named fields. Constructor-level builders preserve connector availability defaults and the station's defensive connector-list copy. Session lifecycle updates still modify the stored session through generated setters.
+- Controllers expose API response DTOs and use `ApiDtoMapper.toInternal` to convert API requests into immutable DTOs in `dto.internal`. Services and station-selection strategies depend on these internal DTOs rather than HTTP request classes. Domain models remain internal and are not returned directly by REST controllers.
+- Lombok builders construct domain models and larger internal/response DTOs with named fields. Constructor-level builders preserve connector availability defaults and the station's defensive connector-list copy. Session lifecycle updates still modify the stored session through generated setters.
 - Tariff calculation uses the Strategy pattern. Adding a new connector tariff should mean adding a new `TariffStrategy`, not changing session orchestration.
 - Station selection also uses a strategy interface. The current implementation is nearest-available selection, leaving room for cheapest or highest-power strategies later.
 - `SessionService` orchestrates the use case and depends on abstractions or focused services rather than reaching into repository internals.

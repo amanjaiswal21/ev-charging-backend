@@ -19,12 +19,12 @@ public class SessionController {
 
     @PostMapping("/start")
     public ChargingSessionResponse start(@Valid @RequestBody StartSessionRequest request) {
-        return mapper.toResponse(sessionService.start(mapper.toCommand(request)));
+        return mapper.toResponse(sessionService.start(mapper.toInternal(request)));
     }
 
     @PostMapping("/{sessionId}/end")
     public ChargingSessionResponse end(@PathVariable String sessionId,
                                        @Valid @RequestBody EndSessionRequest request) {
-        return mapper.toResponse(sessionService.end(sessionId, mapper.toCommand(request)));
+        return mapper.toResponse(sessionService.end(sessionId, mapper.toInternal(request)));
     }
 }

@@ -6,8 +6,8 @@ import com.example.evcharging.exception.BadRequestException;
 import com.example.evcharging.model.PromoCode;
 import com.example.evcharging.model.PromoType;
 import com.example.evcharging.repository.PromoCodeRepository;
-import com.example.evcharging.service.command.CreatePromoCommand;
-import com.example.evcharging.service.result.PromoDiscount;
+import com.example.evcharging.dto.internal.PromoCodeCreationDto;
+import com.example.evcharging.dto.internal.PromoDiscountDto;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,15 +15,15 @@ import org.springframework.stereotype.Service;
 public class PromoCodeService {
     private final PromoCodeRepository promoCodeRepository;
 
-    public PromoCode create(CreatePromoCommand command) {
-        if (command.percentageDiscount() < 0.0 || command.percentageDiscount() > 100.0) {
+    public PromoCode create(PromoCodeCreationDto input) {
+        if (input.percentageDiscount() < 0.0 || input.percentageDiscount() > 100.0) {
             throw new BadRequestException("Promo discount must be between 0 and 100");
         }
 
         PromoCode promo = PromoCode.builder()
-                .code(normalizeRequired(command.code()))
+                .code(normalizeRequired(input.code()))
                 .type(PromoType.PERCENTAGE)
-                .value(command.percentageDiscount())
+                .value(input.percentageDiscount())
                 .active(true)
                 .build();
         return promoCodeRepository.save(promo);
@@ -33,9 +33,9 @@ public class PromoCodeService {
         promoCodeRepository.delete(normalizeRequired(code));
     }
 
-    public PromoDiscount resolveDiscount(String code) {
+    public PromoDiscountDto resolveDiscount(String code) {
         if (code == null || code.isBlank()) {
-            return PromoDiscount.none();
+            return PromoDiscountDto.none();
         }
 
         String normalizedCode = normalizeRequired(code);
@@ -43,7 +43,7 @@ public class PromoCodeService {
                 .filter(PromoCode::isActive)
                 .orElseThrow(() -> new BadRequestException("Invalid promo code: " + normalizedCode));
 
-        return new PromoDiscount(promo.getCode(), promo.getValue());
+        return new PromoDiscountDto(promo.getCode(), promo.getValue());
     }
 
     private String normalizeRequired(String code) {

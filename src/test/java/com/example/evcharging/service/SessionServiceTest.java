@@ -11,12 +11,12 @@ import com.example.evcharging.repository.DriverRepository;
 import com.example.evcharging.repository.PromoCodeRepository;
 import com.example.evcharging.repository.SessionRepository;
 import com.example.evcharging.repository.StationRepository;
-import com.example.evcharging.service.command.ConnectorCommand;
-import com.example.evcharging.service.command.CreatePromoCommand;
-import com.example.evcharging.service.command.EndSessionCommand;
-import com.example.evcharging.service.command.RegisterDriverCommand;
-import com.example.evcharging.service.command.RegisterStationCommand;
-import com.example.evcharging.service.command.StartSessionCommand;
+import com.example.evcharging.dto.internal.ConnectorDto;
+import com.example.evcharging.dto.internal.PromoCodeCreationDto;
+import com.example.evcharging.dto.internal.SessionEndDto;
+import com.example.evcharging.dto.internal.DriverRegistrationDto;
+import com.example.evcharging.dto.internal.StationRegistrationDto;
+import com.example.evcharging.dto.internal.SessionStartDto;
 import com.example.evcharging.strategy.AcTariffStrategy;
 import com.example.evcharging.strategy.DcTariffStrategy;
 import com.example.evcharging.strategy.NearestAvailableStationSelectionStrategy;
@@ -56,14 +56,14 @@ class SessionServiceTest {
     @Test
     void startsAcRequestOnDcFallbackAndBillsUsingAcTariff() {
         Driver driver = registerDriver();
-        ChargingStation station = stationService.register(new RegisterStationCommand(
+        ChargingStation station = stationService.register(new StationRegistrationDto(
                 "DC only",
                 12.9716,
                 77.5946,
-                List.of(new ConnectorCommand(ConnectorType.DC))
+                List.of(new ConnectorDto(ConnectorType.DC))
         ));
 
-        ChargingSession active = sessionService.start(new StartSessionCommand(
+        ChargingSession active = sessionService.start(new SessionStartDto(
                 driver.getId(),
                 12.9716,
                 77.5946,
@@ -78,7 +78,7 @@ class SessionServiceTest {
         assertEquals(ConnectorType.AC, active.getBillingConnectorType());
         assertEquals(ConnectorStatus.IN_USE, station.getConnectors().get(0).getStatus());
 
-        ChargingSession completed = sessionService.end(active.getId(), new EndSessionCommand(25.0));
+        ChargingSession completed = sessionService.end(active.getId(), new SessionEndDto(25.0));
 
         assertEquals(SessionStatus.COMPLETED, completed.getStatus());
         assertEquals(240.0, completed.getFinalCost());
@@ -88,15 +88,15 @@ class SessionServiceTest {
     @Test
     void snapshotsPromoDiscountAtSessionStart() {
         Driver driver = registerDriver();
-        stationService.register(new RegisterStationCommand(
+        stationService.register(new StationRegistrationDto(
                 "DC station",
                 12.9716,
                 77.5946,
-                List.of(new ConnectorCommand(ConnectorType.DC))
+                List.of(new ConnectorDto(ConnectorType.DC))
         ));
-        promoCodeService.create(new CreatePromoCommand("save10", 10.0));
+        promoCodeService.create(new PromoCodeCreationDto("save10", 10.0));
 
-        ChargingSession active = sessionService.start(new StartSessionCommand(
+        ChargingSession active = sessionService.start(new SessionStartDto(
                 driver.getId(),
                 12.9716,
                 77.5946,
@@ -106,7 +106,7 @@ class SessionServiceTest {
         ));
         promoCodeService.delete("save10");
 
-        ChargingSession completed = sessionService.end(active.getId(), new EndSessionCommand(20.0));
+        ChargingSession completed = sessionService.end(active.getId(), new SessionEndDto(20.0));
 
         assertEquals("SAVE10", completed.getPromoCode());
         assertEquals(10.0, completed.getPromoDiscountPercentage());
@@ -116,11 +116,11 @@ class SessionServiceTest {
     @Test
     void doesNotOfferOutOfServiceConnectors() {
         Driver driver = registerDriver();
-        ChargingStation station = stationService.register(new RegisterStationCommand(
+        ChargingStation station = stationService.register(new StationRegistrationDto(
                 "AC station",
                 12.9716,
                 77.5946,
-                List.of(new ConnectorCommand(ConnectorType.AC))
+                List.of(new ConnectorDto(ConnectorType.AC))
         ));
         stationService.updateConnectorStatus(
                 station.getId(),
@@ -128,7 +128,7 @@ class SessionServiceTest {
                 ConnectorStatus.OUT_OF_SERVICE
         );
 
-        assertThrows(BadRequestException.class, () -> sessionService.start(new StartSessionCommand(
+        assertThrows(BadRequestException.class, () -> sessionService.start(new SessionStartDto(
                 driver.getId(),
                 12.9716,
                 77.5946,
@@ -141,14 +141,14 @@ class SessionServiceTest {
     @Test
     void failsWhenNoStationIsWithinRadius() {
         Driver driver = registerDriver();
-        stationService.register(new RegisterStationCommand(
+        stationService.register(new StationRegistrationDto(
                 "Far station",
                 13.0827,
                 80.2707,
-                List.of(new ConnectorCommand(ConnectorType.DC))
+                List.of(new ConnectorDto(ConnectorType.DC))
         ));
 
-        assertThrows(BadRequestException.class, () -> sessionService.start(new StartSessionCommand(
+        assertThrows(BadRequestException.class, () -> sessionService.start(new SessionStartDto(
                 driver.getId(),
                 12.9716,
                 77.5946,
@@ -159,6 +159,6 @@ class SessionServiceTest {
     }
 
     private Driver registerDriver() {
-        return driverService.register(new RegisterDriverCommand("Aman", "KA-01-EV-1234"));
+        return driverService.register(new DriverRegistrationDto("Aman", "KA-01-EV-1234"));
     }
 }

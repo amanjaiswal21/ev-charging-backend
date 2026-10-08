@@ -3,7 +3,7 @@ package com.example.evcharging.strategy;
 import com.example.evcharging.model.ChargingStation;
 import com.example.evcharging.model.ConnectorStatus;
 import com.example.evcharging.model.ConnectorType;
-import com.example.evcharging.service.command.StartSessionCommand;
+import com.example.evcharging.dto.internal.SessionStartDto;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -15,42 +15,42 @@ public class NearestAvailableStationSelectionStrategy implements StationSelectio
     private static final double EARTH_RADIUS_KM = 6371.0088;
 
     @Override
-    public Optional<ConnectorAllocation> select(StartSessionCommand command, Collection<ChargingStation> stations) {
+    public Optional<ConnectorAllocation> select(SessionStartDto input, Collection<ChargingStation> stations) {
         Optional<ConnectorAllocation> exactMatch = findNearest(
-                command,
+                input,
                 stations,
-                command.requestedConnectorType(),
-                command.requestedConnectorType()
+                input.requestedConnectorType(),
+                input.requestedConnectorType()
         );
 
-        if (exactMatch.isPresent() || command.requestedConnectorType() != ConnectorType.AC) {
+        if (exactMatch.isPresent() || input.requestedConnectorType() != ConnectorType.AC) {
             return exactMatch;
         }
 
-        return findNearest(command, stations, ConnectorType.DC, ConnectorType.AC);
+        return findNearest(input, stations, ConnectorType.DC, ConnectorType.AC);
     }
 
-    private Optional<ConnectorAllocation> findNearest(StartSessionCommand command,
+    private Optional<ConnectorAllocation> findNearest(SessionStartDto input,
                                                       Collection<ChargingStation> stations,
                                                       ConnectorType actualConnectorType,
                                                       ConnectorType billingConnectorType) {
         return stations.stream()
-                .map(station -> candidateForStation(command, station, actualConnectorType, billingConnectorType))
+                .map(station -> candidateForStation(input, station, actualConnectorType, billingConnectorType))
                 .flatMap(Optional::stream)
                 .min(Comparator.comparingDouble(ConnectorAllocation::distanceKm));
     }
 
-    private Optional<ConnectorAllocation> candidateForStation(StartSessionCommand command,
+    private Optional<ConnectorAllocation> candidateForStation(SessionStartDto input,
                                                               ChargingStation station,
                                                               ConnectorType actualConnectorType,
                                                               ConnectorType billingConnectorType) {
         double distanceKm = distanceKm(
-                command.latitude(),
-                command.longitude(),
+                input.latitude(),
+                input.longitude(),
                 station.getLatitude(),
                 station.getLongitude()
         );
-        if (distanceKm > command.radiusKm()) {
+        if (distanceKm > input.radiusKm()) {
             return Optional.empty();
         }
 

@@ -6,7 +6,7 @@ import com.example.evcharging.exception.NotFoundException;
 import com.example.evcharging.model.Driver;
 import com.example.evcharging.model.Vehicle;
 import com.example.evcharging.repository.DriverRepository;
-import com.example.evcharging.service.command.RegisterDriverCommand;
+import com.example.evcharging.dto.internal.DriverRegistrationDto;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -16,14 +16,14 @@ import java.util.UUID;
 public class DriverService {
     private final DriverRepository driverRepository;
 
-    public Driver register(RegisterDriverCommand command) {
+    public Driver register(DriverRegistrationDto input) {
         Vehicle vehicle = Vehicle.builder()
                 .id(UUID.randomUUID().toString())
-                .registrationNumber(command.vehicleRegistrationNumber())
+                .registrationNumber(input.vehicleRegistrationNumber())
                 .build();
         Driver driver = Driver.builder()
                 .id(UUID.randomUUID().toString())
-                .name(command.name())
+                .name(input.name())
                 .vehicle(vehicle)
                 .build();
         return driverRepository.save(driver);
