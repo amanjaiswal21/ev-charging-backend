@@ -1,80 +1,31 @@
-# EV Charging Network Backend
-
-Small Spring Boot backend for the EV charging machine-coding problem. It uses in-memory storage, REST APIs, and deliberately scoped seams for the areas most likely to change during a live extension.
-
-## Tech
-- Java 17
-- Spring Boot 3.3.5
-- Maven
-- In-memory repositories using `ConcurrentHashMap`
-- REST APIs
-
-## Implemented
-- Driver + vehicle registration.
-- Charging station + connector registration.
-- Connector availability, in-use, and out-of-service handling.
-- Start-session flow with radius filtering and connector allocation.
-- AC request fallback to a DC connector when no AC connector is free, while billing at the AC tariff.
-- End-session flow with energy delivered and final price calculation.
-- Driver and station session history for active and completed sessions.
-- Promo create/delete APIs, with valid promo discounts snapshotted when a session starts.
-- Tiered AC/DC tariffs with minimum session charges.
-- Separate API DTOs and internal DTO records so controllers do not expose internal domain models directly.
-- Automated tests for billing slabs, minimum charges, promo discounts, AC-billed-on-DC, out-of-service connectors, radius filtering, and promo snapshot behavior.
-
-## Run
-```bash
-mvn spring-boot:run
-```
-
-## Test
-```bash
-mvn test
-```
-
-## Core APIs
-- `POST /api/drivers`
-- `POST /api/stations`
-- `PATCH /api/stations/{stationId}/connectors/{connectorId}/status?status=OUT_OF_SERVICE`
-- `POST /api/sessions/start`
-- `POST /api/sessions/{sessionId}/end`
-- `GET /api/drivers/{driverId}/sessions`
-- `GET /api/stations/{stationId}/sessions`
-- `POST /api/promos`
-- `DELETE /api/promos/{code}`
-
 ## Assumptions
-- Station search uses the latitude/longitude supplied in the start-session request as the driver's current location.
-- When multiple stations qualify, the default selection strategy chooses the nearest station with the requested connector type. AC-to-DC fallback is attempted only after no available AC connector exists inside the radius.
-- DC tariff follows the problem statement example: minimum INR 150; first 10 kWh at INR 20/kWh; 11-25 kWh at INR 14/kWh; beyond 25 kWh at INR 9/kWh.
-- AC tariff is an explicit local assumption: minimum INR 50; first 20 kWh at INR 10/kWh; beyond 20 kWh at INR 8/kWh.
-- Minimum session charge is applied before promo discounts.
-- Promo codes are percentage discounts only. A valid promo is checked and snapshotted when a session starts, so later deletion does not change an active session's discount.
-- Connector status `IN_USE` is managed by session lifecycle only. The status API is for taking connectors out of service and bringing them back.
 
-## Design Decisions
-- Controllers expose API response DTOs and use `ApiDtoMapper.toInternal` to convert API requests into immutable DTOs in `dto.internal`. Services and station-selection strategies depend on these internal DTOs rather than HTTP request classes. Domain models remain internal and are not returned directly by REST controllers.
-- Lombok builders construct domain models and larger internal/response DTOs with named fields. Constructor-level builders preserve connector availability defaults and the station's defensive connector-list copy. Session lifecycle updates still modify the stored session through generated setters.
-- Tariff calculation uses the Strategy pattern. Adding a new connector tariff should mean adding a new `TariffStrategy`, not changing session orchestration.
-- Station selection also uses a strategy interface. The current implementation is nearest-available selection, leaving room for cheapest or highest-power strategies later.
-- `SessionService` orchestrates the use case and depends on abstractions or focused services rather than reaching into repository internals.
-- In-memory repositories are used because the assignment allows them and they keep the exercise focused on domain behavior.
-- Session state stores requested, actual, and billing connector types separately to make the AC-requested/DC-served rule explicit.
+- The location supplied when starting a session represents the driver's current location. Search radius is in kilometres, and distances are calculated using the Haversine formula.
+- The nearest station with an available requested connector is selected. For AC requests, DC fallback is considered only when no AC connector is available within the radius; billing still uses the AC tariff.
+- DC pricing follows the assignment: minimum INR 150, first 10 kWh at INR 20/kWh, next 15 kWh at INR 14/kWh, and remaining energy at INR 9/kWh.
+- Since AC pricing was unspecified, I assumed a minimum of INR 50, first 20 kWh at INR 10/kWh, and remaining energy at INR 8/kWh.
+- Minimum charges are applied before percentage discounts. The final amount is rounded to two decimal places.
+- Promo codes are validated at session start, and the discount is stored on the session. Deleting a promo later does not affect an active session.
+- Delivered energy is supplied when ending a session; live charging and meter readings are outside the current scope. In-memory data is lost when the application restarts.
 
-## Trade-offs
-- Concurrency protection is intentionally simple: session start/end and connector reservation/release are synchronized around the in-memory service objects. A real deployment would move this into database constraints or distributed locking.
-- Tariff values are hard-coded in strategies for readability during a machine-coding round. Production code would likely externalize them to configuration.
-- Promo support is currently percentage-only because that is the mandatory scope. The `PromoType` enum is ready for a flat-amount extension.
-- History responses are sorted by start time but not paginated.
+## Key Design Decisions and Trade-offs
+
+- Controllers, services, repositories, and DTOs have separate responsibilities. API DTOs keep the REST contract independent of internal domain models, at the cost of additional mapping code.
+- Tariff calculation and station selection use strategy interfaces so their rules can change independently of session orchestration.
+- Sessions store requested, actual, and billing connector types separately to represent AC-to-DC fallback explicitly.
+- In-memory repositories keep setup simple. Synchronized session operations serialize start/end requests within one application instance, but limit throughput and do not support multiple instances.
+- AC/DC minimum charges, slab limits, and rates are configured in `src/main/resources/application.properties` under `charging.tariffs`. Limits are cumulative kWh boundaries; the final slab omits `up-to-kwh` to cover all remaining energy. Configuration is validated at startup and changes require a restart.
+- Promos support percentage discounts only, and history is not paginated. These choices keep the implementation focused on the required flows.
 
 ## With More Time
-- Add a configurable station-selection strategy setting.
-- Add flat-amount promos and promo expiry windows.
-- Add cancellation with a no-show fee policy.
-- Add integration tests through MockMvc for the REST boundary.
-- Replace in-memory repositories with persistent storage and optimistic locking.
+
+- Add persistent storage with transactions and concurrency control for connector allocation.
+- Add API integration tests and concurrent session-start tests.
+- Add tariff versioning so active sessions retain their original pricing rules when tariffs change.
+- Add configurable station selection, flat-amount promos, expiry rules, and paginated history.
 
 ## AI Use
-- AI was used to accelerate repository inspection, requirement extraction, implementation scaffolding, and test expansion.
-- Generated ideas were narrowed to the existing Spring Boot shape instead of adding unnecessary infrastructure.
-- The main rewrites were around DTO boundaries, strategy placement, and promo discount ownership so the design stayed explainable and easy to extend.
+
+- I prompted AI to help interpret the requirements, scaffold Spring Boot components, and suggest tests for billing slabs, minimum charges, connector fallback, and promo behaviour.
+- I rejected suggestions that introduced infrastructure beyond the exercise's scope, keeping the implementation focused on the existing Spring Boot structure and in-memory storage.
+- I reviewed and rewrote generated code around DTO boundaries, strategy  and promo discount ownership. These changes kept HTTP details out of business logic, separated pricing and selection rules, and preserved discounts for sessions already started.

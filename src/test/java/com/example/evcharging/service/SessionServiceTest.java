@@ -1,5 +1,6 @@
 package com.example.evcharging.service;
 
+import com.example.evcharging.config.TariffTestConfiguration;
 import com.example.evcharging.exception.BadRequestException;
 import com.example.evcharging.model.ChargingSession;
 import com.example.evcharging.model.ChargingStation;
@@ -17,18 +18,27 @@ import com.example.evcharging.dto.internal.SessionEndDto;
 import com.example.evcharging.dto.internal.DriverRegistrationDto;
 import com.example.evcharging.dto.internal.StationRegistrationDto;
 import com.example.evcharging.dto.internal.SessionStartDto;
-import com.example.evcharging.strategy.AcTariffStrategy;
-import com.example.evcharging.strategy.DcTariffStrategy;
 import com.example.evcharging.strategy.NearestAvailableStationSelectionStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.support.DependencyInjectionTestExecutionListener;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+@SpringJUnitConfig(TariffTestConfiguration.class)
+@TestPropertySource("classpath:application.properties")
+@TestExecutionListeners(DependencyInjectionTestExecutionListener.class)
 class SessionServiceTest {
+    @Autowired
+    private BillingService billingService;
     private DriverService driverService;
     private StationService stationService;
     private PromoCodeService promoCodeService;
@@ -37,19 +47,14 @@ class SessionServiceTest {
     @BeforeEach
     void setUp() {
         driverService = new DriverService(new DriverRepository());
-        stationService = new StationService(new StationRepository());
+        stationService = new StationService(new StationRepository(), new NearestAvailableStationSelectionStrategy());
         promoCodeService = new PromoCodeService(new PromoCodeRepository());
-        BillingService billingService = new BillingService(List.of(
-                new AcTariffStrategy(),
-                new DcTariffStrategy()
-        ));
         sessionService = new SessionService(
                 new SessionRepository(),
                 driverService,
                 stationService,
                 billingService,
-                promoCodeService,
-                new NearestAvailableStationSelectionStrategy()
+                promoCodeService
         );
     }
 
@@ -81,7 +86,7 @@ class SessionServiceTest {
         ChargingSession completed = sessionService.end(active.getId(), new SessionEndDto(25.0));
 
         assertEquals(SessionStatus.COMPLETED, completed.getStatus());
-        assertEquals(240.0, completed.getFinalCost());
+        assertEquals(new BigDecimal("240.00"), completed.getFinalCost());
         assertEquals(ConnectorStatus.AVAILABLE, station.getConnectors().get(0).getStatus());
     }
 
@@ -110,7 +115,7 @@ class SessionServiceTest {
 
         assertEquals("SAVE10", completed.getPromoCode());
         assertEquals(10.0, completed.getPromoDiscountPercentage());
-        assertEquals(306.0, completed.getFinalCost());
+        assertEquals(new BigDecimal("306.00"), completed.getFinalCost());
     }
 
     @Test
