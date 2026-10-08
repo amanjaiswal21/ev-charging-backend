@@ -1,7 +1,10 @@
 package com.example.evcharging.controller;
 
+import lombok.RequiredArgsConstructor;
+
 import com.example.evcharging.dto.CreatePromoRequest;
-import com.example.evcharging.model.PromoCode;
+import com.example.evcharging.dto.PromoCodeResponse;
+import com.example.evcharging.mapper.ApiDtoMapper;
 import com.example.evcharging.service.PromoCodeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -9,17 +12,15 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/promos")
+@RequiredArgsConstructor
 public class PromoCodeController {
     private final PromoCodeService promoCodeService;
-
-    public PromoCodeController(PromoCodeService promoCodeService) {
-        this.promoCodeService = promoCodeService;
-    }
+    private final ApiDtoMapper mapper;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PromoCode create(@Valid @RequestBody CreatePromoRequest request) {
-        return promoCodeService.create(request);
+    public PromoCodeResponse create(@Valid @RequestBody CreatePromoRequest request) {
+        return mapper.toResponse(promoCodeService.create(mapper.toCommand(request)));
     }
 
     @DeleteMapping("/{code}")

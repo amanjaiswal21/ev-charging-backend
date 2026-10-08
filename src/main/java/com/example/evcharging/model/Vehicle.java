@@ -1,18 +1,18 @@
 package com.example.evcharging.model;
 
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Vehicle {
     private String id;
     private String registrationNumber;
 
-    public Vehicle() {}
-
-    public Vehicle(String id, String registrationNumber) {
-        this.id = id;
-        this.registrationNumber = registrationNumber;
-    }
-
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public String getRegistrationNumber() { return registrationNumber; }
-    public void setRegistrationNumber(String registrationNumber) { this.registrationNumber = registrationNumber; }
 }

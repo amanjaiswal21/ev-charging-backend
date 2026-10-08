@@ -1,35 +1,39 @@
 package com.example.evcharging.service;
 
-import com.example.evcharging.dto.RegisterStationRequest;
+import lombok.RequiredArgsConstructor;
+
+import com.example.evcharging.exception.BadRequestException;
 import com.example.evcharging.exception.NotFoundException;
 import com.example.evcharging.model.ChargingStation;
 import com.example.evcharging.model.Connector;
 import com.example.evcharging.model.ConnectorStatus;
 import com.example.evcharging.repository.StationRepository;
+import com.example.evcharging.service.command.RegisterStationCommand;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class StationService {
     private final StationRepository stationRepository;
 
-    public StationService(StationRepository stationRepository) {
-        this.stationRepository = stationRepository;
-    }
-
-    public ChargingStation register(RegisterStationRequest request) {
-        var connectors = request.connectors().stream()
-                .map(c -> new Connector(UUID.randomUUID().toString(), c.type()))
+    public ChargingStation register(RegisterStationCommand command) {
+        var connectors = command.connectors().stream()
+                .map(c -> Connector.builder()
+                        .id(UUID.randomUUID().toString())
+                        .type(c.type())
+                        .build())
                 .toList();
 
-        ChargingStation station = new ChargingStation(
-                UUID.randomUUID().toString(),
-                request.name(),
-                request.latitude(),
-                request.longitude(),
-                connectors
-        );
+        ChargingStation station = ChargingStation.builder()
+                .id(UUID.randomUUID().toString())
+                .name(command.name())
+                .latitude(command.latitude())
+                .longitude(command.longitude())
+                .connectors(connectors)
+                .build();
 
         return stationRepository.save(station);
     }
@@ -39,16 +43,55 @@ public class StationService {
                 .orElseThrow(() -> new NotFoundException("Station not found: " + id));
     }
 
-    public Connector updateConnectorStatus(String stationId, String connectorId, ConnectorStatus status) {
-        ChargingStation station = getById(stationId);
-        Connector connector = station.getConnectors().stream()
-                .filter(c -> c.getId().equals(connectorId))
-                .findFirst()
-                .orElseThrow(() -> new NotFoundException("Connector not found: " + connectorId));
+    public Collection<ChargingStation> getAll() {
+        return stationRepository.findAll();
+    }
 
-        // TODO: add validation, e.g. do not mark an active connector OUT_OF_SERVICE accidentally.
+    public synchronized Connector updateConnectorStatus(String stationId, String connectorId, ConnectorStatus status) {
+        ChargingStation station = getById(stationId);
+        Connector connector = findConnector(station, connectorId);
+
+        if (status == null) {
+            throw new BadRequestException("Connector status is required");
+        }
+        if (status == ConnectorStatus.IN_USE) {
+            throw new BadRequestException("Connector status IN_USE is managed by charging sessions");
+        }
+        if (connector.getStatus() == ConnectorStatus.IN_USE) {
+            throw new BadRequestException("Cannot update an in-use connector");
+        }
+
         connector.setStatus(status);
         stationRepository.save(station);
         return connector;
+    }
+
+    public synchronized void reserveConnector(String stationId, String connectorId) {
+        ChargingStation station = getById(stationId);
+        Connector connector = findConnector(station, connectorId);
+        if (connector.getStatus() != ConnectorStatus.AVAILABLE) {
+            throw new BadRequestException("Connector is not available: " + connectorId);
+        }
+
+        connector.setStatus(ConnectorStatus.IN_USE);
+        stationRepository.save(station);
+    }
+
+    public synchronized void releaseConnector(String stationId, String connectorId) {
+        ChargingStation station = getById(stationId);
+        Connector connector = findConnector(station, connectorId);
+        if (connector.getStatus() != ConnectorStatus.IN_USE) {
+            throw new BadRequestException("Connector is not in use: " + connectorId);
+        }
+
+        connector.setStatus(ConnectorStatus.AVAILABLE);
+        stationRepository.save(station);
+    }
+
+    private Connector findConnector(ChargingStation station, String connectorId) {
+        return station.getConnectors().stream()
+                .filter(c -> c.getId().equals(connectorId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Connector not found: " + connectorId));
     }
 }
